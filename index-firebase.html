@@ -35,8 +35,8 @@ let currentPage = 'dashboard';
 const PRODUCTS = [
   'Paket 750+ Produk Digital',
   'Paket 750+ & 8Juta+ Produk Digital',
-  'Paket Formula Strategi Ngiklan & 750+',
-  'Paket Produk Digital Lengkap',
+  'Paket Formula Strategi Ngiklan & 750+ Produk Digital',
+  'Paket Formula Strategi Ngiklan & 750+8Juta+ Produk Digital',
 ];
 
 // UTILS
@@ -185,7 +185,7 @@ function renderDashboard() {
   const stats = [
     {label:'Est. Gross Revenue',val:fmtShort(totalRev),sub:fmtRp(totalRev),col:'#4a9eff',bg:'#0f2040',border:'#4a9eff22'},
     {label:'Total Order',val:totalCnt,sub:'transactions',col:'#00d97e',bg:'#0a1e14',border:'#00d97e22'},
-    {label:'Completed',val:completed.length,sub:'✅ done',col:'#f5a623',bg:'#201a0a',border:'#f5a62322'},
+    {label:'Completed',val:completed.length,sub:'✅ completed',col:'#f5a623',bg:'#201a0a',border:'#f5a62322'},
     {label:'Pending',val:pending.length,sub:'⏳ waiting',col:'#bf7af0',bg:'#180e2a',border:'#bf7af022'},
   ];
   document.getElementById('statsGrid').innerHTML = stats.map(s=>
@@ -211,10 +211,43 @@ function renderDashboard() {
     if (chartInstance) chartInstance.destroy();
     chartInstance = new Chart(canvas, {
       data: {labels, datasets:[
-        {type:'bar',label:'Revenue',data:revData,backgroundColor:'rgba(74,158,255,0.72)',borderRadius:4,yAxisID:'y1'},
-        {type:'line',label:'Count',data:cntData,borderColor:'#f5a623',borderWidth:2.5,pointRadius:0,tension:0.4,yAxisID:'y2'},
+        {type:'bar',label:'Amount (Rp)',data:revData,backgroundColor:'rgba(74,158,255,0.72)',borderRadius:4,yAxisID:'y1'},
+        {type:'line',label:'Count',data:cntData,borderColor:'#f5a623',borderWidth:2.5,pointRadius:4,tension:0.4,yAxisID:'y2'},
       ]},
-      options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{y1:{beginAtZero:true,position:'left'},y2:{beginAtZero:true,position:'right'}}}
+      options:{
+        responsive:true,
+        maintainAspectRatio:true,
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            mode:'index',
+            intersect:false,
+            backgroundColor:'rgba(15, 20, 40, 0.9)',
+            titleColor:'#e2e8f0',
+            bodyColor:'#8aa8d0',
+            borderColor:'#1d3055',
+            borderWidth:1,
+            padding:10,
+            displayColors:true,
+            callbacks:{
+              title:function(ctx){
+                return 'Tanggal: '+ctx[0].label;
+              },
+              label:function(ctx){
+                if(ctx.datasetIndex===0){
+                  return 'Amount: '+fmtShort(ctx.parsed.y);
+                }else{
+                  return 'Count: '+ctx.parsed.y+' transaksi';
+                }
+              }
+            }
+          }
+        },
+        scales:{
+          y1:{beginAtZero:true,position:'left'},
+          y2:{beginAtZero:true,position:'right'}
+        }
+      }
     });
   }
 
@@ -712,8 +745,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);}
           <select id="fProduct">
             <option>Paket 750+ Produk Digital</option>
             <option>Paket 750+ & 8Juta+ Produk Digital</option>
-            <option>Paket Formula Strategi Ngiklan & 750+</option>
-            <option>Paket Produk Digital Lengkap</option>
+            <option>Paket Formula Strategi Ngiklan & 750+ Produk Digital</option>
+            <option>Paket Formula Strategi Ngiklan & 750+8Juta+ Produk Digital</option>
           </select>
         </div>
         <div style="margin-bottom:11px;">
