@@ -36,6 +36,7 @@ const PRODUCTS = [
   'Paket 750+ Produk Digital',
   'Paket 750+ & 8Juta+ Produk Digital',
   'Paket Formula Strategi Ngiklan & 750+',
+  'Paket Produk Digital Lengkap',
 ];
 
 // UTILS
@@ -158,8 +159,22 @@ function loadFromLocal() {
   try { orders = JSON.parse(localStorage.getItem('zdh-tracker-firebase')||'[]'); } catch(e) { orders=[]; }
 }
 
+// UPDATE DATE RANGE
+window.updateDateRange = function(days) {
+  const t = todayStr();
+  currentTo = t;
+  currentFrom = addDays(t, -days);
+  document.getElementById('dateFrom').value = currentFrom;
+  document.getElementById('dateTo').value = currentTo;
+  renderDashboard();
+}
+
 // RENDER DASHBOARD
 function renderDashboard() {
+  // UPDATE currentFrom & currentTo dari input
+  currentFrom = document.getElementById('dateFrom').value;
+  currentTo = document.getElementById('dateTo').value;
+  
   const all = orders.filter(o => o.date >= currentFrom && o.date <= currentTo);
   const completed = all.filter(o => o.status === 'completed');
   const pending = all.filter(o => o.status === 'pending');
@@ -419,7 +434,7 @@ function previewCSV() {
   const preview = csvRows.slice(0,4).map(r=>
     `<div style="font-size:10px;color:#8aa8d0;margin-bottom:2px">${r.date} · ${r.platform} · ${fmtRp(r.amount)} · ${r.status==='pending'?'⏳':'✅'}${r.nama?' · '+r.nama:''}</div>`
   ).join('');
-  prevEl.innerHTML = `<div style="font-size:11px;color:var(--green);margin-bottom:5px">✅ ${csvRows.length} baris siap diimport</div>${preview}${csvRows.length>4?`<div style="font-size:10px;color:var(--text3)">... dan ${csvRows.length-4} lagi</div>`:''}`; 
+  prevEl.innerHTML = `<div style="font-size:11px;color:var(--green);margin-bottom:5px">✅ ${csvRows.length} baris siap diimport</div>${preview}${csvRows.length>4?`<div style="font-size:10px;color:#8aa8d0">... dan ${csvRows.length-4} lainnya</div>`:''}`
   prevEl.style.display='block';
   document.getElementById('csvPreviewBtn').style.display='none';
   document.getElementById('csvImportBtn').style.display='block';
@@ -526,7 +541,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 #contentWrapper{flex:1;overflow-y:auto;padding-bottom:72px;}
 
 .nav{position:fixed;bottom:0;left:0;right:0;background:#0f1e3a;border-top:1px solid var(--border);display:flex;z-index:50;}
-.nav-btn{flex:1;padding:11px 0 9px;background:none;border:none;color:var(--text3);font-size:10px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;transition:color .2s;}
+.nav-btn{flex:1;padding:11px 0 9px;background:none;border:none;color:var(--text3);font-size:10px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;}
 .nav-btn.active{color:var(--blue);border-top:2px solid var(--blue);}
 .nav-icon{font-size:17px;}
 
@@ -578,6 +593,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);}
 .modal-overlay.open{display:flex;}
 .modal{background:var(--surface);border-radius:20px 20px 0 0;padding:20px 15px 36px;width:100%;max-height:92vh;overflow-y:auto;border:1px solid var(--border);}
 .modal-title{font-size:15px;font-weight:700;margin-bottom:13px;}
+
+.period-buttons{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;}
+.period-btn{background:#1a3a6b;color:var(--blue);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;}
+.period-btn:active{opacity:.7;}
 
 @media(min-width:480px){.stats-grid{grid-template-columns:repeat(4,1fr);}}
 </style>
@@ -637,6 +656,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);}
           <span style="color:var(--text3);">–</span>
           <input type="date" id="dateTo" style="width:auto;flex:1;">
         </div>
+        <div class="period-buttons">
+          <button class="period-btn" onclick="window.updateDateRange(7)">7 hari</button>
+          <button class="period-btn" onclick="window.updateDateRange(14)">14 hari</button>
+          <button class="period-btn" onclick="window.updateDateRange(30)">30 hari</button>
+          <button class="period-btn" onclick="window.updateDateRange(90)">90 hari</button>
+        </div>
       </div>
 
       <div class="stats-grid" id="statsGrid"></div>
@@ -688,6 +713,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);}
             <option>Paket 750+ Produk Digital</option>
             <option>Paket 750+ & 8Juta+ Produk Digital</option>
             <option>Paket Formula Strategi Ngiklan & 750+</option>
+            <option>Paket Produk Digital Lengkap</option>
           </select>
         </div>
         <div style="margin-bottom:11px;">
@@ -746,9 +772,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);}
     <div style="font-size:11px;color:var(--text3);margin-bottom:11px;line-height:1.8;">
       Kolom wajib: <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">date, amount</code><br>
       Kolom opsional: <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">platform, product, nama, email, hp, status</code><br>
-      Format tanggal: <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">YYYY-MM-DD</code> atau <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">DD/MM/YYYY</code>
+      Format tanggal: <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">YYYY-MM-DD</code> atau <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">DD/MM/YYYY</code> atau <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">DD-MM-YYYY</code>
     </div>
-    <textarea id="csvInput" rows="6" placeholder="date,amount,platform,product,nama,email,hp,status&#10;2026-05-01,25000,Scalev,Paket 750+ Produk Digital,Budi,budi@mail.com,08123,completed" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;outline:none;font-family:inherit;margin-bottom:11px;"></textarea>
+    <textarea id="csvInput" rows="6" placeholder="date,amount,platform,product,nama,email,hp,status&#10;2026-05-01,25000,Scalev,Paket 750+ Produk Digital,Budi,budi@mail.com,08123,completed" style="margin-bottom:11px;"></textarea>
     <div style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;" id="csvErr"></div>
     <div id="csvPreview" style="display:none;background:#0a1626;border-radius:8px;padding:10px;margin-bottom:11px;max-height:110px;overflow-y:auto;"></div>
     <div style="display:flex;gap:9px;">
