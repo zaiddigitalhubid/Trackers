@@ -29,6 +29,7 @@ const db = getDatabase(app);
 let orders = [], editId = null, chartInstance = null;
 let currentUser = null;
 let currentFrom = '', currentTo = '';
+let csvRows = [];
 
 // UTILS
 const toYMD = d => d.toISOString().slice(0,10);
@@ -37,6 +38,7 @@ const fmtRp = n => 'Rp '+Number(n).toLocaleString('id-ID');
 const fmtShort = n => n>=1e9?'Rp '+(n/1e9).toFixed(2).replace('.',',')+'M':n>=1e6?'Rp '+(n/1e6).toFixed(2).replace('.',',')+' jt':n>=1000?'Rp '+(n/1000).toFixed(0)+'rb':'Rp '+n;
 const todayStr = () => toYMD(new Date());
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2);
+const PLAT_ICON = {'Scalev':'🛍️','Lynk.id':'🔗','Tokopedia':'🟢','TikTok Shop':'🎵','WhatsApp':'💬','Lainnya':'📦'};
 
 let toastTimer;
 function showToast(msg, type='ok') {
@@ -151,7 +153,7 @@ function loadFromLocal() {
   try { orders = JSON.parse(localStorage.getItem('zdh-tracker-firebase')||'[]'); } catch(e) { orders=[]; }
 }
 
-// RENDER
+// RENDER DASHBOARD
 function renderDashboard() {
   const all = orders.filter(o => o.date >= currentFrom && o.date <= currentTo);
   const completed = all.filter(o => o.status === 'completed');
@@ -201,7 +203,6 @@ function renderDashboard() {
   const sorted = [...all].sort((a,b)=>b.date.localeCompare(a.date));
   ol.innerHTML = sorted.map(o=>{
     const isPending = o.status === 'pending';
-    const PLAT_ICON = {'Scalev':'🛍️','Lynk.id':'🔗','Tokopedia':'🟢','TikTok Shop':'🎵','WhatsApp':'💬','Lainnya':'📦'};
     return `<div class="order-item">
       <div class="order-icon">${PLAT_ICON[o.platform]||'📦'}</div>
       <div class="order-info">
@@ -223,6 +224,39 @@ function renderDashboard() {
   }).join('');
 }
 
+// RENDER PEMBELI
+function renderPembeli() {
+  const q = (document.getElementById('buyerSearch').value||'').toLowerCase();
+  const map = {};
+  orders.filter(o=>o.nama||o.email||o.hp).forEach(o=>{
+    const key = o.email||o.hp||o.nama;
+    if (!map[key]) map[key]={nama:o.nama||'',email:o.email||'',hp:o.hp||'',orders:[],total:0,pending:0};
+    map[key].orders.push(o);
+    map[key].total+=o.amount;
+    if(o.status==='pending') map[key].pending++;
+  });
+  let list = Object.values(map).sort((a,b)=>b.total-a.total);
+  document.getElementById('buyerCount').textContent = list.length+' pembeli';
+  if (q) list = list.filter(b=>b.nama.toLowerCase().includes(q)||b.email.toLowerCase().includes(q)||b.hp.includes(q));
+  const el = document.getElementById('buyerList');
+  if (!list.length) { el.innerHTML=`<div class="empty">${Object.keys(map).length===0?'Belum ada data pembeli':'Tidak ditemukan'}</div>`; return; }
+  el.innerHTML = list.map(b=>`
+    <div class="buyer-card">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">👤</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:#c8d8f0">${b.nama||'(Tanpa Nama)'}</div>
+          <div style="font-size:10px;color:var(--text3)">${[b.email,b.hp].filter(Boolean).join(' · ')||'No kontak'}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:14px;font-weight:800;color:var(--green)">${fmtShort(b.total)}</div>
+          <div style="font-size:10px;color:var(--text3)">${b.orders.length}x${b.pending?` · <span style="color:var(--yellow)">${b.pending} pending</span>`:''}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ORDER FORM
 function submitOrder() {
   const date = document.getElementById('fDate').value;
   const amount = parseInt(document.getElementById('fAmount').value||'0', 10);
@@ -263,6 +297,7 @@ window.startEdit = function(id) {
   document.getElementById('fNama').value = o.nama||'';
   document.getElementById('fEmail').value = o.email||'';
   document.getElementById('fHp').value = o.hp||'';
+  document.getElementById('formTitle').textContent = '✏️ Edit Transaksi';
   document.getElementById('submitBtn').textContent = 'Simpan';
   document.getElementById('cancelBtn').style.display = 'block';
   switchTab('tambah');
@@ -277,6 +312,7 @@ function resetForm() {
   document.getElementById('fProduct').value = 'Paket 750+ Produk Digital';
   document.getElementById('fStatus').value = 'completed';
   ['fNama','fEmail','fHp'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('formTitle').textContent = '➕ Tambah Transaksi';
   document.getElementById('submitBtn').textContent = 'Tambah';
   document.getElementById('cancelBtn').style.display = 'none';
 }
@@ -290,6 +326,7 @@ window.deleteOrder = function(id) {
   showToast('🗑️ Terhapus');
 }
 
+// EXPORT & IMPORT
 function exportCSV() {
   if (!orders.length) { showToast('⚠️ Belum ada data.','err'); return; }
   const cols = ['date','amount','platform','product','status','nama','email','hp'];
@@ -304,15 +341,79 @@ function exportCSV() {
   showToast('📤 Export OK!');
 }
 
+function openImport() {
+  document.getElementById('csvInput').value='';
+  document.getElementById('csvErr').style.display='none';
+  document.getElementById('csvPreview').style.display='none';
+  document.getElementById('csvPreviewBtn').style.display='block';
+  document.getElementById('csvImportBtn').style.display='none';
+  csvRows=[];
+  openModal('importModal');
+}
+
+function previewCSV() {
+  const errEl=document.getElementById('csvErr'), prevEl=document.getElementById('csvPreview');
+  errEl.style.display='none'; prevEl.style.display='none';
+  const lines = document.getElementById('csvInput').value.trim().split('\n');
+  if (lines.length<2) { showCsvErr('CSV minimal harus ada header dan 1 data.'); return; }
+  const hdr = lines[0].split(',').map(h=>h.trim().toLowerCase());
+  const idx = keys => hdr.findIndex(h=>keys.some(k=>h.includes(k)));
+  const di=idx(['date','tanggal']), ai=idx(['amount','harga','revenue','nominal']);
+  const pi=idx(['platform']), pri=idx(['product','produk']), si=idx(['status']);
+  const ni=idx(['nama','name']), ei=idx(['email']), hi=idx(['hp','phone','wa']);
+  if (di<0||ai<0) { showCsvErr('CSV harus ada kolom date/tanggal dan amount/harga.'); return; }
+  csvRows = lines.slice(1).map((l,i)=>{
+    const c = l.split(',').map(x=>x.trim());
+    let date = c[di]||'';
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(date)){const[d,m,y]=date.split('/');date=`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;}
+    else if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(date)){const[d,m,y]=date.split('-');date=`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;}
+    const amount = parseInt((c[ai]||'0').replace(/\D/g,''),10)||0;
+    const rawStatus = si>=0?c[si]||'completed':'completed';
+    const status = rawStatus.toLowerCase().includes('pending')?'pending':'completed';
+    return {id:uid(),date,amount,
+      platform:pi>=0?c[pi]||'Scalev':'Scalev',
+      product:pri>=0?c[pri]||'Paket 750+ Produk Digital':'Paket 750+ Produk Digital',
+      status, nama:ni>=0?c[ni]||'':'',
+      email:ei>=0?c[ei]||'':'', hp:hi>=0?c[hi]||'':'',
+    };
+  }).filter(r=>r.date&&r.amount>0);
+  if (!csvRows.length) { showCsvErr('Tidak ada baris valid ditemukan.'); return; }
+  const preview = csvRows.slice(0,4).map(r=>
+    `<div style="font-size:10px;color:#8aa8d0;margin-bottom:2px">${r.date} · ${r.platform} · ${fmtRp(r.amount)} · ${r.status==='pending'?'⏳':'✅'}${r.nama?' · '+r.nama:''}</div>`
+  ).join('');
+  prevEl.innerHTML = `<div style="font-size:11px;color:var(--green);margin-bottom:5px">✅ ${csvRows.length} baris siap diimport</div>${preview}${csvRows.length>4?`<div style="font-size:10px;color:var(--text3)">... dan ${csvRows.length-4} lagi</div>`:''}`; 
+  prevEl.style.display='block';
+  document.getElementById('csvPreviewBtn').style.display='none';
+  document.getElementById('csvImportBtn').style.display='block';
+}
+function showCsvErr(msg) { const e=document.getElementById('csvErr'); e.textContent='⚠️ '+msg; e.style.display='block'; }
+function confirmImport() {
+  const ex = new Set(orders.map(o=>\`\${o.date}-\${o.amount}-\${o.platform}\`));
+  const toAdd = csvRows.filter(r=>!ex.has(\`\${r.date}-\${r.amount}-\${r.platform}\`));
+  orders = [...orders,...toAdd].sort((a,b)=>b.date.localeCompare(a.date));
+  saveToLocal();
+  if (currentUser) syncToFirebase();
+  closeModal('importModal'); 
+  renderDashboard();
+  showToast(\`✅ \${toAdd.length} transaksi diimport!\`);
+}
+
+// MODAL
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id, e) { if (!e||e.target===e.currentTarget) document.getElementById(id).classList.remove('open'); }
+
+// TAB
 function switchTab(name) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   document.getElementById('nav-'+name).classList.add('active');
+  if (name==='pembeli') renderPembeli();
   if (name==='tambah'&&!editId) resetForm();
   window.scrollTo(0,0);
 }
 
+// INIT
 function init() {
   const t = todayStr();
   currentFrom = addDays(t,-29); currentTo = t;
@@ -330,6 +431,9 @@ function init() {
 window.submitOrder = submitOrder;
 window.cancelEdit = cancelEdit;
 window.exportCSV = exportCSV;
+window.openImport = openImport;
+window.previewCSV = previewCSV;
+window.confirmImport = confirmImport;
 window.switchTab = switchTab;
 window.authLogin = authLogin;
 window.authRegister = authRegister;
@@ -421,7 +525,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);}
 .order-amount{font-size:13px;font-weight:700;color:var(--green);}
 .order-actions{display:flex;gap:4px;flex-shrink:0;}
 
+.buyer-card{background:var(--surface);border-radius:13px;padding:13px;margin-bottom:9px;border:1px solid var(--border);}
+
 .empty{text-align:center;color:var(--text3);padding:36px 0;font-size:13px;line-height:1.8;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);align-items:flex-end;justify-content:center;z-index:100;display:none;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:20px 15px 36px;width:100%;max-height:92vh;overflow-y:auto;border:1px solid var(--border);}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:13px;}
 
 @media(min-width:480px){.stats-grid{grid-template-columns:repeat(4,1fr);}}
 </style>
@@ -451,7 +562,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);}
     </div>
   </div>
   <div class="header-btns">
-    <button class="btn btn-blue btn-icon" onclick="exportCSV()">📤</button>
+    <button class="btn btn-blue btn-icon" onclick="openImport()">📥</button>
+    <button class="btn btn-green btn-icon" onclick="exportCSV()">📤</button>
     <button class="btn btn-red btn-icon" onclick="authLogout()" title="Logout">🚪</button>
   </div>
 </div>
@@ -493,10 +605,21 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);}
   </div>
 </div>
 
+<!-- ===== PEMBELI ===== -->
+<div class="page" id="page-pembeli">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;">
+      <span class="card-title" style="margin:0" id="buyerCount">0 pembeli</span>
+    </div>
+    <input type="search" id="buyerSearch" placeholder="🔍 Cari nama, email, no HP..." oninput="window.renderPembeli()" style="margin-bottom:0;">
+  </div>
+  <div id="buyerList"><div class="empty">Belum ada data pembeli</div></div>
+</div>
+
 <!-- ===== TAMBAH ===== -->
 <div class="page" id="page-tambah">
   <div class="card">
-    <div style="font-size:15px;font-weight:700;margin-bottom:13px;">➕ Tambah Transaksi</div>
+    <div class="modal-title" id="formTitle">➕ Tambah Transaksi</div>
     <div style="margin-bottom:11px; font-weight:600; padding-bottom:7px; border-bottom:1px solid var(--border);">🧾 Data Transaksi</div>
     
     <div style="margin-bottom:11px;">
@@ -551,9 +674,30 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);}
   </div>
 </div>
 
+<!-- ===== IMPORT MODAL ===== -->
+<div class="modal-overlay" id="importModal" onclick="closeModal('importModal',event)">
+  <div class="modal">
+    <div class="modal-title">📥 Import dari CSV</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:11px;line-height:1.8;">
+      Kolom wajib: <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">date, amount</code><br>
+      Kolom opsional: <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">platform, product, nama, email, hp, status</code><br>
+      Format tanggal: <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">YYYY-MM-DD</code> atau <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);">DD/MM/YYYY</code>
+    </div>
+    <textarea id="csvInput" rows="6" placeholder="date,amount,platform,product,nama,email,hp,status&#10;2026-05-01,25000,Scalev,Paket 750+ Produk Digital,Budi,budi@mail.com,08123,completed" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;outline:none;font-family:inherit;margin-bottom:11px;"></textarea>
+    <div style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;" id="csvErr"></div>
+    <div id="csvPreview" style="display:none;background:#0a1626;border-radius:8px;padding:10px;margin-bottom:11px;max-height:110px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:9px;">
+      <button class="btn btn-blue btn-full" id="csvPreviewBtn" onclick="previewCSV()">Preview</button>
+      <button class="btn btn-green btn-full" id="csvImportBtn" style="display:none;" onclick="confirmImport()">Import Sekarang</button>
+      <button class="btn btn-ghost btn-full" onclick="closeModal('importModal')">Batal</button>
+    </div>
+  </div>
+</div>
+
 <!-- BOTTOM NAV -->
 <nav class="nav">
   <button class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><span class="nav-icon">📊</span>Dashboard</button>
+  <button class="nav-btn" id="nav-pembeli" onclick="switchTab('pembeli')"><span class="nav-icon">👥</span>Pembeli</button>
   <button class="nav-btn" id="nav-tambah" onclick="switchTab('tambah')"><span class="nav-icon">➕</span>Tambah</button>
 </nav>
 
