@@ -31,6 +31,12 @@ let currentUser = null;
 let currentFrom = '', currentTo = '';
 let csvRows = [];
 
+const PRODUCTS = [
+  'Paket 750+ Produk Digital',
+  'Paket 750+ & 8Juta+ Produk Digital',
+  'Paket Formula Strategi Ngiklan & 750+',
+];
+
 // UTILS
 const toYMD = d => d.toISOString().slice(0,10);
 const addDays = (s,n) => { const d=new Date(s); d.setDate(d.getDate()+n); return toYMD(d); };
@@ -175,6 +181,7 @@ function renderDashboard() {
       <div class="stat-sub" style="color:${s.col}">${s.sub}</div>
     </div>`).join('');
 
+  // CHART
   const map = {};
   for (let d=currentFrom; d<=currentTo; d=addDays(d,1)) map[d] = {date:d,rev:0,cnt:0};
   all.forEach(o => { if(map[o.date]) { map[o.date].rev+=o.amount; map[o.date].cnt+=1; } });
@@ -197,6 +204,38 @@ function renderDashboard() {
     });
   }
 
+  // PRODUCT SUMMARY
+  const prodSummaryCard = document.getElementById('productSummaryCard');
+  const prodSummaryEl = document.getElementById('productSummary');
+  const byProduct = PRODUCTS.map(p => {
+    const items = all.filter(o => o.product === p);
+    const completedItems = items.filter(o => o.status !== 'pending');
+    const pendingItems = items.filter(o => o.status === 'pending');
+    return {
+      name: p,
+      total: items.length,
+      completed: completedItems.length,
+      pending: pendingItems.length,
+      rev: completedItems.reduce((s,o)=>s+o.amount,0),
+    };
+  }).filter(p => p.total > 0).sort((a,b)=>b.total-a.total);
+
+  if (byProduct.length) {
+    prodSummaryCard.style.display = 'block';
+    prodSummaryEl.innerHTML = byProduct.map((p,i) => `
+      <div style="padding:10px 0;border-bottom:1px solid #182a48;${i===byProduct.length-1?'border-bottom:none':''}">
+        <div style="font-size:12px;font-weight:700;color:#c8d8f0;margin-bottom:6px;line-height:1.4">${p.name}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <span style="background:#0a2a15;color:var(--green);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">✅ ${p.completed} completed</span>
+          ${p.pending?`<span style="background:#2a2010;color:var(--yellow);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⏳ ${p.pending} pending</span>`:''}
+          <span style="color:var(--text3);font-size:11px;margin-left:auto">${fmtShort(p.rev)}</span>
+        </div>
+      </div>`).join('');
+  } else {
+    prodSummaryCard.style.display = 'none';
+  }
+
+  // ORDERS
   const ol = document.getElementById('orderList');
   document.getElementById('orderListTitle').textContent = `Riwayat (${all.length})`;
   if (!all.length) { ol.innerHTML='<div class="empty">Belum ada transaksi</div>'; return; }
@@ -309,7 +348,7 @@ function resetForm() {
   document.getElementById('fDate').value = todayStr();
   document.getElementById('fAmount').value = '';
   document.getElementById('fPlatform').value = 'Scalev';
-  document.getElementById('fProduct').value = 'Paket 750+ Produk Digital';
+  document.getElementById('fProduct').value = PRODUCTS[0];
   document.getElementById('fStatus').value = 'completed';
   ['fNama','fEmail','fHp'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('formTitle').textContent = '➕ Tambah Transaksi';
@@ -372,7 +411,7 @@ function previewCSV() {
     const status = rawStatus.toLowerCase().includes('pending')?'pending':'completed';
     return {id:uid(),date,amount,
       platform:pi>=0?c[pi]||'Scalev':'Scalev',
-      product:pri>=0?c[pri]||'Paket 750+ Produk Digital':'Paket 750+ Produk Digital',
+      product:pri>=0?c[pri]||PRODUCTS[0]:PRODUCTS[0],
       status, nama:ni>=0?c[ni]||'':'',
       email:ei>=0?c[ei]||'':'', hp:hi>=0?c[hi]||'':'',
     };
@@ -388,14 +427,14 @@ function previewCSV() {
 }
 function showCsvErr(msg) { const e=document.getElementById('csvErr'); e.textContent='⚠️ '+msg; e.style.display='block'; }
 function confirmImport() {
-  const ex = new Set(orders.map(o=>\`\${o.date}-\${o.amount}-\${o.platform}\`));
-  const toAdd = csvRows.filter(r=>!ex.has(\`\${r.date}-\${r.amount}-\${r.platform}\`));
+  const ex = new Set(orders.map(o=>`${o.date}-${o.amount}-${o.platform}`));
+  const toAdd = csvRows.filter(r=>!ex.has(`${r.date}-${r.amount}-${r.platform}`));
   orders = [...orders,...toAdd].sort((a,b)=>b.date.localeCompare(a.date));
   saveToLocal();
   if (currentUser) syncToFirebase();
   closeModal('importModal'); 
   renderDashboard();
-  showToast(\`✅ \${toAdd.length} transaksi diimport!\`);
+  showToast(`✅ ${toAdd.length} transaksi diimport!`);
 }
 
 // MODAL
@@ -408,7 +447,7 @@ function switchTab(name) {
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   document.getElementById('nav-'+name).classList.add('active');
-  if (name==='pembeli') renderPembeli();
+  if (name==='pembeli') window.renderPembeli();
   if (name==='tambah'&&!editId) resetForm();
   window.scrollTo(0,0);
 }
@@ -438,6 +477,7 @@ window.switchTab = switchTab;
 window.authLogin = authLogin;
 window.authRegister = authRegister;
 window.authLogout = authLogout;
+window.renderPembeli = renderPembeli;
 
 onAuthStateChanged(auth, user => {
   if (user) {
@@ -591,10 +631,17 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);}
   </div>
 
   <div class="stats-grid" id="statsGrid"></div>
+  
   <div class="card">
     <div class="card-title">Grafik Penjualan</div>
     <canvas id="salesChart"></canvas>
     <div class="empty" id="chartEmpty" style="display:none;padding:20px 0;">Belum ada data</div>
+  </div>
+
+  <!-- PRODUCT SUMMARY -->
+  <div class="card" id="productSummaryCard" style="display:none;">
+    <div class="card-title">📦 Ringkasan Produk Terjual</div>
+    <div id="productSummary"></div>
   </div>
 
   <div class="card">
