@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ZDH Sales Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0b1628;--surface:#101e36;--surface2:#162540;--border:#1d3055;
+  --blue:#4a9eff;--green:#00d97e;--orange:#f5a623;--purple:#bf7af0;--red:#e05a5a;--yellow:#f5c518;
+  --text:#e2e8f0;--text2:#8aa8d0;--text3:#4a6a90;
+}
+body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;padding-bottom:72px;font-size:14px;}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,#0f1e3a,#162447);border-bottom:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:40;}
+.logo{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f5c518,#e6a800);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#0b1628;flex-shrink:0;}
+.header-info{flex:1;}
+.header-title{font-size:14px;font-weight:700;}
+.header-sub{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:5px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);flex-shrink:0;}
+.sync-dot.ok{background:var(--green);}
+.sync-dot.syncing{background:var(--yellow);animation:blink 1s infinite;}
+.sync-dot.err{background:var(--red);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+.header-btns{display:flex;gap:5px;}
+
+/* NAV */
+.nav{position:fixed;bottom:0;left:0;right:0;background:#0f1e3a;border-top:1px solid var(--border);display:flex;z-index:50;}
+.nav-btn{flex:1;padding:11px 0 9px;background:none;border:none;color:var(--text3);font-size:10px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;border-top:2px solid transparent;transition:all .2s;}
+.nav-btn.active{color:var(--blue);border-top-color:var(--blue);}
+.nav-icon{font-size:17px;}
+
+/* PAGES */
+.page{display:none;padding:13px;}
+.page.active{display:block;}
+
+/* BUTTONS */
+.btn{border:none;border-radius:10px;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s;}
+.btn:active{opacity:.75;}
+.btn-blue{background:#1a3a6b;color:var(--blue);}
+.btn-green{background:#1a3a20;color:var(--green);}
+.btn-red{background:#2a1520;color:var(--red);}
+.btn-ghost{background:var(--surface2);color:var(--text2);}
+.btn-yellow{background:#2a2010;color:var(--yellow);}
+.btn-full{width:100%;padding:12px;font-size:14px;}
+.btn-icon{padding:7px 10px;font-size:12px;}
+
+/* CARDS */
+.card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:13px;margin-bottom:11px;}
+.card-title{font-size:11px;color:var(--text3);font-weight:600;margin-bottom:9px;}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px;}
+.stat-card{border-radius:13px;padding:12px;border-width:1px;border-style:solid;}
+.stat-label{font-size:10px;font-weight:600;margin-bottom:2px;opacity:.7;}
+.stat-val{font-size:21px;font-weight:800;line-height:1.1;}
+.stat-sub{font-size:10px;margin-top:2px;opacity:.55;}
+
+/* PRESETS */
+.presets{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px;}
+.preset-btn{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:none;background:var(--surface2);color:var(--text2);font-family:inherit;transition:all .2s;}
+.preset-btn.active{background:var(--blue);color:#fff;}
+.date-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+.date-label{font-size:11px;color:var(--text3);}
+
+/* INPUTS */
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;outline:none;font-family:inherit;width:100%;-webkit-appearance:none;}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238aa8d0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);}
+.form-group{margin-bottom:11px;}
+.form-label{font-size:11px;color:var(--text3);font-weight:600;margin-bottom:4px;display:block;}
+.form-section{font-size:12px;font-weight:700;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--border);}
+
+/* STATUS BADGE */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;}
+.badge-completed{background:#0a2a15;color:var(--green);border:1px solid #00d97e33;}
+.badge-pending{background:#2a2010;color:var(--yellow);border:1px solid #f5c51833;}
+
+/* ORDER ITEM */
+.order-item{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #182a48;}
+.order-item:last-child{border-bottom:none;}
+.order-icon{width:33px;height:33px;border-radius:9px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.order-info{flex:1;min-width:0;}
+.order-name{font-size:12px;font-weight:600;color:#c8d8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.order-meta{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:2px;}
+.order-right{text-align:right;flex-shrink:0;}
+.order-amount{font-size:13px;font-weight:700;color:var(--green);}
+.order-actions{display:flex;gap:4px;flex-shrink:0;}
+
+/* BUYER */
+.buyer-card{background:var(--surface);border-radius:13px;padding:13px;margin-bottom:9px;border:1px solid var(--border);}
+.buyer-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;}
+.buyer-tag{background:#0f2040;border-radius:8px;padding:3px 8px;font-size:10px;color:#8aa8d0;}
+
+/* CHART */
+#salesChart{max-height:180px;}
+
+/* PLATFORM BAR */
+.plat-row{margin-bottom:7px;}
+.plat-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;}
+.plat-track{background:var(--surface2);border-radius:4px;height:5px;}
+.plat-fill{height:100%;background:var(--blue);border-radius:4px;transition:width .5s;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);align-items:flex-end;justify-content:center;z-index:100;display:none;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:20px 15px 36px;width:100%;max-height:92vh;overflow-y:auto;border:1px solid var(--border);}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:13px;}
+
+/* SETUP CLOUD */
+.cloud-banner{background:linear-gradient(135deg,#0f2040,#162447);border:1px solid var(--blue);border-radius:12px;padding:12px;margin-bottom:11px;display:flex;align-items:center;gap:10px;}
+.cloud-banner.ok{border-color:var(--green);background:linear-gradient(135deg,#0a1e14,#0f2820);}
+.cloud-banner.err{border-color:var(--red);background:linear-gradient(135deg,#1e0a0a,#280f0f);}
+
+/* EMPTY */
+.empty{text-align:center;color:var(--text3);padding:36px 0;font-size:13px;line-height:1.8;}
+
+/* TOAST */
+.toast{position:fixed;top:68px;left:50%;transform:translateX(-50%);padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+.toast-ok{background:#1a3a20;color:var(--green);}
+.toast-err{background:#2a1520;color:var(--red);}
+.toast-info{background:#1a3a6b;color:var(--blue);}
+
+/* SETTINGS */
+.setting-row{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.setting-help{font-size:11px;color:var(--text3);line-height:1.6;}
+code{background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--blue);}
+
+/* FILTER ROW */
+.filter-row{display:flex;gap:6px;margin-bottom:9px;}
+.filter-btn{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .2s;}
+
+@media(min-width:480px){.stats-grid{grid-template-columns:repeat(4,1fr);}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">Z</div>
+  <div class="header-info">
+    <div class="header-title">Zaid Digital Hub 👋</div>
+    <div class="header-sub">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="syncLabel">Memuat...</span>
+    </div>
+  </div>
+  <div class="header-btns">
+    <button class="btn btn-yellow btn-icon" onclick="openSettings()" title="Pengaturan Cloud">☁️</button>
+    <button class="btn btn-blue btn-icon" onclick="openImport()">📥</button>
+    <button class="btn btn-green btn-icon" onclick="exportCSV()">📤</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast toast-ok" id="toast"></div>
+
+<!-- ===== DASHBOARD ===== -->
+<div class="page active" id="page-dashboard">
+  <!-- Cloud banner -->
+  <div class="cloud-banner" id="cloudBanner">
+    <span style="font-size:22px">☁️</span>
+    <div style="flex:1">
+      <div style="font-size:12px;font-weight:700;color:var(--blue)" id="cloudBannerTitle">Belum terhubung ke cloud</div>
+      <div style="font-size:10px;color:var(--text3)" id="cloudBannerSub">Data tersimpan lokal di browser ini saja. Klik ☁️ untuk setup sync.</div>
+    </div>
+    <button class="btn btn-blue btn-icon" onclick="openSettings()">Setup</button>
+  </div>
+
+  <div class="card">
+    <div class="presets" id="presetBtns"></div>
+    <div class="date-row">
+      <span class="date-label">Dari</span>
+      <input type="date" id="dateFrom" style="width:auto;flex:1;" oninput="onDateChange()">
+      <span class="date-label">–</span>
+      <input type="date" id="dateTo" style="width:auto;flex:1;" oninput="onDateChange()">
+    </div>
+  </div>
+
+  <!-- Status filter -->
+  <div class="filter-row">
+    <button class="filter-btn active" id="fAll" onclick="setStatusFilter('all')" style="background:var(--surface2);color:var(--text2);">Semua</button>
+    <button class="filter-btn" id="fLunas" onclick="setStatusFilter('lunas')" style="background:#0a2a15;color:var(--green);">✅ Completed</button>
+    <button class="filter-btn" id="fPending" onclick="setStatusFilter('pending')" style="background:#2a2010;color:var(--yellow);">⏳ Pending</button>
+  </div>
+
+  <div class="stats-grid" id="statsGrid"></div>
+  <div class="card">
+    <div class="card-title">Grafik Penjualan</div>
+    <canvas id="salesChart"></canvas>
+    <div class="empty" id="chartEmpty" style="display:none;padding:20px 0;">Belum ada data di periode ini</div>
+  </div>
+  <!-- PRODUCT SUMMARY -->
+  <div class="card" id="productSummaryCard" style="display:none;">
+    <div class="card-title">📦 Ringkasan Produk Terjual</div>
+    <div id="productSummary"></div>
+  </div>
+  <div class="card" id="platCard" style="display:none;">
+    <div class="card-title">Breakdown Platform</div>
+    <div id="platBreakdown"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;">
+      <div class="card-title" style="margin:0" id="orderListTitle">Riwayat Transaksi</div>
+    </div>
+    <div id="orderList"><div class="empty">Belum ada transaksi</div></div>
+  </div>
+</div>
+
+<!-- ===== PEMBELI ===== -->
+<div class="page" id="page-pembeli">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;">
+      <span class="card-title" style="margin:0" id="buyerCount">0 pembeli</span>
+      <button class="btn btn-green btn-icon" onclick="exportBuyers()">📤 Export</button>
+    </div>
+    <input type="search" id="buyerSearch" placeholder="🔍 Cari nama, email, no HP..." oninput="renderBuyers()" style="margin-bottom:0;">
+  </div>
+  <div id="buyerList"><div class="empty">Belum ada data pembeli.<br>Tambahkan nama/email/HP saat input order.</div></div>
+</div>
+
+<!-- ===== TAMBAH ===== -->
+<div class="page" id="page-tambah">
+  <div class="card">
+    <div class="modal-title" id="formTitle">➕ Tambah Transaksi</div>
+
+    <div class="form-section" style="color:var(--blue)">🧾 Data Transaksi</div>
+    <div class="form-group">
+      <label class="form-label">Tanggal</label>
+      <input type="date" id="fDate">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Produk</label>
+      <select id="fProduct">
+        <option value="Paket 750+ Produk Digital">Paket 750+ Produk Digital</option>
+        <option value="Paket 750+ & 8Juta+ Produk Digital">Paket 750+ &amp; 8Juta+ Produk Digital</option>
+        <option value="Paket Formula Strategi Ngiklan & 750+ Produk Digital">Paket Formula Strategi Ngiklan &amp; 750+ Produk Digital</option>
+        <option value="Paket Formula Strategi Ngiklan & 750+8Juta+ Produk Digital">Paket Formula Strategi Ngiklan &amp; 750+8Juta+ Produk Digital</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nominal (Rp)</label>
+      <input type="number" id="fAmount" placeholder="25000" inputmode="numeric">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Platform</label>
+      <select id="fPlatform">
+        <option>Scalev</option><option>Lynk.id</option><option>Tokopedia</option>
+        <option>TikTok Shop</option><option>WhatsApp</option><option>Lainnya</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Status Pembayaran</label>
+      <select id="fStatus">
+        <option value="lunas">✅ Completed — Sudah Bayar</option>
+        <option value="pending">⏳ Pending — Belum Bayar</option>
+      </select>
+    </div>
+
+    <div class="form-section" style="color:var(--orange);margin-top:14px;">👤 Data Pembeli <span style="font-weight:400;color:var(--text3)">(opsional)</span></div>
+    <div class="form-group">
+      <label class="form-label">Nama Pembeli</label>
+      <input type="text" id="fNama" placeholder="Budi Santoso">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" id="fEmail" placeholder="budi@email.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">No HP / WhatsApp</label>
+      <input type="tel" id="fHp" placeholder="08123456789" inputmode="numeric">
+    </div>
+
+    <div style="display:flex;gap:9px;margin-top:4px;">
+      <button class="btn btn-green btn-full" id="submitBtn" onclick="submitOrder()">Tambah</button>
+      <button class="btn btn-ghost btn-full" id="cancelBtn" onclick="cancelEdit()" style="display:none;">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS MODAL ===== -->
+<div class="modal-overlay" id="settingsModal" onclick="closeModal('settingsModal',event)">
+  <div class="modal">
+    <div class="modal-title">☁️ Pengaturan Cloud Sync</div>
+
+    <div style="background:#0f2040;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--text2);line-height:1.8;">
+      <strong style="color:var(--blue)">Cara setup (gratis, 2 menit):</strong><br>
+      1. Buka <strong style="color:#fff">jsonbin.io</strong> → daftar gratis<br>
+      2. Dashboard → klik <strong style="color:#fff">+ Create Bin</strong> → isi <code>[]</code> → Save<br>
+      3. Copy <strong style="color:#fff">BIN ID</strong> (angka panjang di URL)<br>
+      4. Klik <strong style="color:#fff">Account</strong> → <strong style="color:#fff">API Keys</strong> → copy <strong style="color:#fff">Master Key</strong><br>
+      5. Tempel di bawah → Simpan
+    </div>
+
+    <div class="setting-row">
+      <label class="form-label">Master Key (dari jsonbin.io)</label>
+      <input type="password" id="sBinKey" placeholder="$2a$10$...">
+      <div class="setting-help">Temukan di: Account → API Keys → Master Key</div>
+    </div>
+    <div class="setting-row">
+      <label class="form-label">Bin ID</label>
+      <input type="text" id="sBinId" placeholder="6839f...">
+      <div class="setting-help">Temukan di: URL bin kamu, contoh: jsonbin.io/v3/b/<strong>INI-BIN-ID-NYA</strong></div>
+    </div>
+
+    <div style="display:flex;gap:9px;margin-top:4px;">
+      <button class="btn btn-blue btn-full" onclick="saveCloudSettings()">💾 Simpan & Sync</button>
+      <button class="btn btn-red btn-icon" onclick="clearCloud()" title="Hapus koneksi">✕</button>
+      <button class="btn btn-ghost btn-full" onclick="closeModal('settingsModal')">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== IMPORT MODAL ===== -->
+<div class="modal-overlay" id="importModal" onclick="closeModal('importModal',event)">
+  <div class="modal">
+    <div class="modal-title">📥 Import dari CSV</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:11px;line-height:1.8;">
+      Kolom wajib: <code>date, amount</code><br>
+      Kolom opsional: <code>platform, product, nama, email, hp, status</code><br>
+      Format tanggal: <code>YYYY-MM-DD</code> atau <code>DD/MM/YYYY</code><br>
+      Status: <code>completed</code> atau <code>pending</code>
+    </div>
+    <textarea id="csvInput" rows="6" placeholder="date,amount,platform,product,nama,email,hp,status&#10;2026-05-01,25000,Scalev,Paket 750+ Produk Digital,Budi,budi@mail.com,08123,completed" style="font-family:monospace;font-size:11px;resize:vertical;margin-bottom:8px;"></textarea>
+    <div style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;" id="csvErr"></div>
+    <div id="csvPreview" style="display:none;background:#0a1626;border-radius:8px;padding:10px;margin-bottom:11px;max-height:110px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:9px;">
+      <button class="btn btn-blue btn-full" id="csvPreviewBtn" onclick="previewCSV()">Preview</button>
+      <button class="btn btn-green btn-full" id="csvImportBtn" style="display:none;" onclick="confirmImport()">Import Sekarang</button>
+      <button class="btn btn-ghost btn-full" onclick="closeModal('importModal')">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav">
+  <button class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><span class="nav-icon">📊</span>Dashboard</button>
+  <button class="nav-btn" id="nav-pembeli" onclick="switchTab('pembeli')"><span class="nav-icon">👥</span>Pembeli</button>
+  <button class="nav-btn" id="nav-tambah" onclick="switchTab('tambah')"><span class="nav-icon">➕</span>Tambah</button>
+</nav>
+
+<script>
+// ===================== CONFIG =====================
+const LS_KEY = 'zdh-tracker-v2';
+const LS_CLOUD = 'zdh-cloud-cfg';
+const PRODUCTS = [
+  'Paket 750+ Produk Digital',
+  'Paket 750+ & 8Juta+ Produk Digital',
+  'Paket Formula Strategi Ngiklan & 750+ Produk Digital',
+  'Paket Formula Strategi Ngiklan & 750+8Juta+ Produk Digital',
+];
+const PLAT_ICON = {'Scalev':'🛍️','Lynk.id':'🔗','Tokopedia':'🟢','TikTok Shop':'🎵','WhatsApp':'💬','Lainnya':'📦'};
+const PLATFORMS = ['Scalev','Lynk.id','Tokopedia','TikTok Shop','WhatsApp','Lainnya'];
+
+let orders = [], editId = null, chartInstance = null;
+let currentFrom = '', currentTo = '', activePreset = '30 Hari';
+let statusFilter = 'all';
+let csvRows = [];
+let cloudCfg = {key:'', binId:''};
+let syncTimeout = null;
+
+// ===================== UTILS =====================
+const toYMD = d => d.toISOString().slice(0,10);
+const addDays = (s,n) => { const d=new Date(s); d.setDate(d.getDate()+n); return toYMD(d); };
+const fmtRp = n => 'Rp '+Number(n).toLocaleString('id-ID');
+const fmtShort = n => n>=1e9?'Rp '+(n/1e9).toFixed(2).replace('.',',')+'M':n>=1e6?'Rp '+(n/1e6).toFixed(2).replace('.',',')+' jt':n>=1000?'Rp '+(n/1000).toFixed(0)+'rb':'Rp '+n;
+const todayStr = () => toYMD(new Date());
+const fomStr = () => todayStr().slice(0,8)+'01';
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2);
+
+let toastTimer;
+function showToast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast toast-${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+// ===================== SYNC STATUS =====================
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  dot.className = 'sync-dot' + (state ? ' '+state : '');
+  lbl.textContent = label;
+}
+
+// ===================== LOCAL STORAGE =====================
+function loadLocal() {
+  try { orders = JSON.parse(localStorage.getItem(LS_KEY)||'[]'); } catch(e) { orders=[]; }
+}
+function saveLocal() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(orders)); } catch(e) {}
+}
+function loadCloudCfg() {
+  try { cloudCfg = JSON.parse(localStorage.getItem(LS_CLOUD)||'{}'); } catch(e) {}
+  cloudCfg = { key: cloudCfg.key||'', binId: cloudCfg.binId||'' };
+}
+function saveCloudCfg() {
+  localStorage.setItem(LS_CLOUD, JSON.stringify(cloudCfg));
+}
+
+// ===================== JSONBIN API =====================
+const BIN_URL = id => `https://api.jsonbin.io/v3/b/${id}`;
+
+async function cloudLoad() {
+  if (!cloudCfg.key || !cloudCfg.binId) { updateCloudBanner(false); setSyncStatus('','Lokal saja'); return; }
+  setSyncStatus('syncing', 'Memuat cloud...');
+  try {
+    const r = await fetch(BIN_URL(cloudCfg.binId)+'/latest', {
+      headers: {'X-Master-Key': cloudCfg.key, 'X-Bin-Meta': false}
+    });
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    if (Array.isArray(data)) { orders = data; saveLocal(); }
+    else if (Array.isArray(data.record)) { orders = data.record; saveLocal(); }
+    setSyncStatus('ok', 'Cloud sync aktif ✓');
+    updateCloudBanner(true);
+  } catch(e) {
+    setSyncStatus('err', 'Gagal konek cloud');
+    updateCloudBanner(false, true);
+  }
+}
+
+async function cloudSave() {
+  if (!cloudCfg.key || !cloudCfg.binId) return;
+  setSyncStatus('syncing', 'Menyimpan...');
+  try {
+    const r = await fetch(BIN_URL(cloudCfg.binId), {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json','X-Master-Key':cloudCfg.key},
+      body: JSON.stringify(orders)
+    });
+    if (!r.ok) throw new Error(r.status);
+    setSyncStatus('ok', 'Tersimpan ✓');
+  } catch(e) {
+    setSyncStatus('err', 'Gagal simpan cloud');
+    showToast('⚠️ Gagal sync cloud. Data tersimpan lokal.', 'err');
+  }
+}
+
+function scheduleSave() {
+  saveLocal();
+  if (!cloudCfg.key || !cloudCfg.binId) return;
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(cloudSave, 1200);
+}
+
+function updateCloudBanner(connected, error=false) {
+  const b = document.getElementById('cloudBanner');
+  const t = document.getElementById('cloudBannerTitle');
+  const s = document.getElementById('cloudBannerSub');
+  const btn = b.querySelector('button');
+  if (connected) {
+    b.className = 'cloud-banner ok';
+    b.querySelector('span').textContent = '☁️';
+    t.style.color = 'var(--green)';
+    t.textContent = 'Cloud sync aktif';
+    s.textContent = 'Data tersimpan di cloud — bisa diakses dari HP & PC manapun.';
+    btn.textContent = '⚙️';
+  } else if (error) {
+    b.className = 'cloud-banner err';
+    t.style.color = 'var(--red)';
+    t.textContent = 'Gagal konek ke cloud';
+    s.textContent = 'Cek API key & Bin ID di pengaturan ☁️';
+    btn.textContent = 'Perbaiki';
+  } else {
+    b.className = 'cloud-banner';
+    t.style.color = 'var(--blue)';
+    t.textContent = 'Belum terhubung ke cloud';
+    s.textContent = 'Data tersimpan lokal di browser ini saja. Klik ☁️ untuk setup sync.';
+    btn.textContent = 'Setup';
+  }
+}
+
+// ===================== SETTINGS =====================
+function openSettings() {
+  document.getElementById('sBinKey').value = cloudCfg.key || '';
+  document.getElementById('sBinId').value = cloudCfg.binId || '';
+  openModal('settingsModal');
+}
+async function saveCloudSettings() {
+  const key = document.getElementById('sBinKey').value.trim();
+  const binId = document.getElementById('sBinId').value.trim();
+  if (!key || !binId) { showToast('⚠️ Isi Master Key dan Bin ID dulu.','err'); return; }
+  cloudCfg = { key, binId };
+  saveCloudCfg();
+  closeModal('settingsModal');
+  showToast('🔄 Menghubungkan ke cloud...','info');
+  await cloudLoad();
+  renderDashboard();
+  showToast('✅ Cloud sync berhasil!');
+}
+function clearCloud() {
+  if (!confirm('Hapus koneksi cloud? Data lokal tetap aman.')) return;
+  cloudCfg = {key:'',binId:''};
+  saveCloudCfg();
+  updateCloudBanner(false);
+  setSyncStatus('','Lokal saja');
+  closeModal('settingsModal');
+  showToast('Koneksi cloud dihapus','info');
+}
+
+// ===================== PRESETS =====================
+const PRESETS = [
+  {label:'7 Hari', from:()=>addDays(todayStr(),-6), to:()=>todayStr()},
+  {label:'30 Hari', from:()=>addDays(todayStr(),-29), to:()=>todayStr()},
+  {label:'Bulan Ini', from:()=>fomStr(), to:()=>todayStr()},
+  {label:'3 Bulan', from:()=>addDays(todayStr(),-89), to:()=>todayStr()},
+  {label:'6 Bulan', from:()=>addDays(todayStr(),-179), to:()=>todayStr()},
+  {label:'1 Tahun', from:()=>addDays(todayStr(),-364), to:()=>todayStr()},
+  {label:'Semua', from:()=>'2020-01-01', to:()=>todayStr()},
+];
+
+function initPresets() {
+  document.getElementById('presetBtns').innerHTML = PRESETS.map(p =>
+    `<button class="preset-btn${p.label===activePreset?' active':''}" onclick="applyPreset('${p.label}')">${p.label}</button>`
+  ).join('');
+}
+function applyPreset(label) {
+  activePreset = label;
+  const p = PRESETS.find(x=>x.label===label);
+  currentFrom = p.from(); currentTo = p.to();
+  document.getElementById('dateFrom').value = currentFrom;
+  document.getElementById('dateTo').value = currentTo;
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active', b.textContent===label));
+  renderDashboard();
+}
+function onDateChange() {
+  currentFrom = document.getElementById('dateFrom').value;
+  currentTo = document.getElementById('dateTo').value;
+  activePreset = '';
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  renderDashboard();
+}
+
+// ===================== STATUS FILTER =====================
+function setStatusFilter(s) {
+  statusFilter = s;
+  ['all','lunas','pending'].forEach(k => {
+    const btn = document.getElementById('f'+k.charAt(0).toUpperCase()+k.slice(1));
+    if (btn) btn.style.fontWeight = k===s ? '700' : '500';
+    if (btn) btn.style.opacity = k===s ? '1' : '0.6';
+  });
+  renderDashboard();
+}
+
+// ===================== RENDER DASHBOARD =====================
+function getFiltered() {
+  let f = orders.filter(o => o.date>=currentFrom && o.date<=currentTo);
+  if (statusFilter !== 'all') f = f.filter(o => (o.status||'lunas') === statusFilter);
+  return f;
+}
+
+function renderDashboard() {
+  const all = orders.filter(o => o.date>=currentFrom && o.date<=currentTo);
+  const lunas = all.filter(o=>(o.status||'lunas')==='lunas');
+  const pending = all.filter(o=>(o.status||'lunas')==='pending');
+  const f = getFiltered();
+  const totalRev = f.reduce((s,o)=>s+o.amount,0);
+  const totalCnt = f.length;
+  const avgOrd = totalCnt ? Math.round(totalRev/totalCnt) : 0;
+
+  // Build chart data
+  const map = {};
+  for (let d=currentFrom; d<=currentTo; d=addDays(d,1)) map[d] = {date:d,rev:0,cnt:0};
+  f.forEach(o => { if(map[o.date]) { map[o.date].rev+=o.amount; map[o.date].cnt+=1; } });
+  const days = Object.values(map);
+  let labels=[], revData=[], cntData=[];
+  if (days.length > 60) {
+    const wks = {};
+    days.forEach(d => {
+      const dt = new Date(d.date);
+      const wk = `${d.date.slice(5,7)}-W${Math.ceil(dt.getDate()/7)}`;
+      if (!wks[wk]) wks[wk]={date:wk,rev:0,cnt:0};
+      wks[wk].rev+=d.rev; wks[wk].cnt+=d.cnt;
+    });
+    Object.values(wks).forEach(w=>{labels.push(w.date);revData.push(w.rev);cntData.push(w.cnt);});
+  } else {
+    days.forEach(d=>{labels.push(d.date.slice(5));revData.push(d.rev);cntData.push(d.cnt);});
+  }
+  const peakIdx = revData.length ? revData.indexOf(Math.max(...revData)) : 0;
+  const peakVal = revData.length ? Math.max(...revData) : 0;
+  const peakLbl = peakVal>0 ? labels[peakIdx] : '—';
+
+  // Pending stats
+  const pendingRev = pending.reduce((s,o)=>s+o.amount,0);
+  const stats = statusFilter==='all' ? [
+    {label:'Est. Gross Revenue (Completed)',val:fmtShort(lunas.reduce((s,o)=>s+o.amount,0)),sub:fmtRp(lunas.reduce((s,o)=>s+o.amount,0)),col:'#4a9eff',bg:'#0f2040',border:'#4a9eff22'},
+    {label:'⏳ Pending',val:pending.length+'x',sub:'≈ '+fmtShort(pendingRev),col:'#f5c518',bg:'#2a2010',border:'#f5c51822'},
+    {label:'Total Order',val:all.length,sub:lunas.length+' completed · '+pending.length+' pending',col:'#00d97e',bg:'#0a1e14',border:'#00d97e22'},
+    {label:'Avg / Order',val:fmtShort(avgOrd),sub:fmtRp(avgOrd),col:'#bf7af0',bg:'#180e2a',border:'#bf7af022'},
+  ] : [
+    {label:'Est. Gross Revenue',val:fmtShort(totalRev),sub:fmtRp(totalRev),col:'#4a9eff',bg:'#0f2040',border:'#4a9eff22'},
+    {label:'Count',val:totalCnt,sub:'total transaksi',col:'#f5a623',bg:'#201a0a',border:'#f5a62322'},
+    {label:'Avg / Order',val:fmtShort(avgOrd),sub:fmtRp(avgOrd),col:'#00d97e',bg:'#0a1e14',border:'#00d97e22'},
+    {label:'Peak Day',val:peakVal>0?fmtShort(peakVal):'—',sub:peakLbl,col:'#bf7af0',bg:'#180e2a',border:'#bf7af022'},
+  ];
+  document.getElementById('statsGrid').innerHTML = stats.map(s=>
+    `<div class="stat-card" style="background:${s.bg};border-color:${s.border}">
+      <div class="stat-label" style="color:${s.col}">${s.label}</div>
+      <div class="stat-val" style="color:${s.col}">${s.val}</div>
+      <div class="stat-sub" style="color:${s.col}">${s.sub}</div>
+    </div>`).join('');
+
+  // Chart
+  const canvas = document.getElementById('salesChart');
+  const empty = document.getElementById('chartEmpty');
+  if (!f.length) { canvas.style.display='none'; empty.style.display='block'; }
+  else {
+    canvas.style.display='block'; empty.style.display='none';
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(canvas, {
+      data: {labels, datasets:[
+        {type:'bar',label:'Revenue',data:revData,backgroundColor:'rgba(74,158,255,0.72)',borderRadius:4,yAxisID:'y1'},
+        {type:'line',label:'Count',data:cntData,borderColor:'#f5a623',borderWidth:2.5,pointRadius:0,tension:0.4,yAxisID:'y2'},
+      ]},
+      options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label==='Revenue'?fmtRp(ctx.raw):ctx.raw+' order'},backgroundColor:'#1a2540',titleColor:'#a0b0d0',bodyColor:'#e2e8f0',borderColor:'#2d3f6b',borderWidth:1}},scales:{x:{ticks:{color:'#4a6a90',font:{size:9}},grid:{display:false},border:{display:false}},y1:{display:false},y2:{display:false}}}
+    });
+  }
+
+  // Platform
+  const byPlat = PLATFORMS.map(p=>({
+    name:p,icon:PLAT_ICON[p]||'📦',
+    cnt:f.filter(o=>o.platform===p).length,
+    rev:f.filter(o=>o.platform===p).reduce((s,o)=>s+o.amount,0)
+  })).filter(p=>p.cnt>0).sort((a,b)=>b.rev-a.rev);
+  const platCard = document.getElementById('platCard');
+  if (totalRev > 0 && byPlat.length) {
+    platCard.style.display='block';
+    document.getElementById('platBreakdown').innerHTML = byPlat.map(p=>
+      `<div class="plat-row">
+        <div class="plat-top">
+          <span style="color:#c8d8f0">${p.icon} ${p.name}</span>
+          <span><span style="color:var(--blue);font-weight:700">${fmtRp(p.rev)}</span> <span style="color:var(--text3)">(${p.cnt}x)</span></span>
+        </div>
+        <div class="plat-track"><div class="plat-fill" style="width:${Math.round(p.rev/totalRev*100)}%"></div></div>
+      </div>`).join('');
+  } else platCard.style.display='none';
+
+
+  // Product Summary
+  const prodSummaryCard = document.getElementById('productSummaryCard');
+  const prodSummaryEl = document.getElementById('productSummary');
+  const byProduct = PRODUCTS.map(p => {
+    const items = f.filter(o => o.product === p);
+    const completedItems = items.filter(o => (o.status||'lunas') !== 'pending');
+    const pendingItems = items.filter(o => (o.status||'lunas') === 'pending');
+    return {
+      name: p,
+      total: items.length,
+      completed: completedItems.length,
+      pending: pendingItems.length,
+      rev: completedItems.reduce((s,o)=>s+o.amount,0),
+    };
+  }).filter(p => p.total > 0).sort((a,b)=>b.total-a.total);
+
+  if (byProduct.length) {
+    prodSummaryCard.style.display = 'block';
+    prodSummaryEl.innerHTML = byProduct.map((p,i) => `
+      <div style="padding:10px 0;border-bottom:1px solid #182a48;${i===byProduct.length-1?'border-bottom:none':''}">
+        <div style="font-size:12px;font-weight:700;color:#c8d8f0;margin-bottom:6px;line-height:1.4">${p.name}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <span style="background:#0a2a15;color:var(--green);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">✅ ${p.completed} completed</span>
+          ${p.pending?`<span style="background:#2a2010;color:var(--yellow);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⏳ ${p.pending} pending</span>`:''}
+          <span style="color:var(--text3);font-size:11px;margin-left:auto">${fmtShort(p.rev)}</span>
+        </div>
+      </div>`).join('');
+  } else {
+    prodSummaryCard.style.display = 'none';
+  }
+
+  // Orders
+  const ol = document.getElementById('orderList');
+  document.getElementById('orderListTitle').textContent = `Riwayat Transaksi (${f.length})`;
+  if (!f.length) { ol.innerHTML='<div class="empty">Belum ada transaksi di periode ini</div>'; return; }
+  const sorted = [...f].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,60);
+  ol.innerHTML = sorted.map(o=>{
+    const isPending = (o.status||'lunas')==='pending';
+    return `<div class="order-item">
+      <div class="order-icon">${PLAT_ICON[o.platform]||'📦'}</div>
+      <div class="order-info">
+        <div class="order-name">${o.product||'Order'}</div>
+        <div class="order-meta">
+          <span>${o.date}</span>
+          <span>·</span>
+          <span>${o.platform}</span>
+          ${o.nama?`<span>·</span><span>${o.nama}</span>`:''}
+          <span class="badge ${isPending?'badge-pending':'badge-completed'}">${isPending?'⏳ Pending':'✅ Completed'}</span>
+        </div>
+      </div>
+      <div class="order-right">
+        <div class="order-amount" style="${isPending?'color:var(--yellow)':''}">${fmtRp(o.amount)}</div>
+      </div>
+      <div class="order-actions">
+        <button class="btn btn-blue btn-icon" onclick="startEdit('${o.id}')">✏️</button>
+        <button class="btn btn-red btn-icon" onclick="deleteOrder('${o.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+  if (f.length>60) ol.innerHTML += '<div style="text-align:center;color:var(--text3);font-size:11px;padding-top:7px;">Menampilkan 60 terbaru</div>';
+}
+
+// ===================== BUYERS =====================
+function renderBuyers() {
+  const q = (document.getElementById('buyerSearch').value||'').toLowerCase();
+  const map = {};
+  orders.filter(o=>o.nama||o.email||o.hp).forEach(o=>{
+    const key = o.email||o.hp||o.nama;
+    if (!map[key]) map[key]={nama:o.nama||'',email:o.email||'',hp:o.hp||'',orders:[],total:0,pending:0};
+    map[key].orders.push(o);
+    map[key].total+=o.amount;
+    if((o.status||'lunas')==='pending') map[key].pending++;
+  });
+  let list = Object.values(map).sort((a,b)=>b.total-a.total);
+  document.getElementById('buyerCount').textContent = list.length+' pembeli tercatat';
+  if (q) list = list.filter(b=>b.nama.toLowerCase().includes(q)||b.email.toLowerCase().includes(q)||b.hp.includes(q));
+  const el = document.getElementById('buyerList');
+  if (!list.length) { el.innerHTML=`<div class="empty">${Object.keys(map).length===0?'Belum ada data pembeli.<br>Tambahkan nama/email/HP saat input order.':'Tidak ditemukan.'}</div>`; return; }
+  el.innerHTML = list.map(b=>`
+    <div class="buyer-card">
+      <div class="buyer-header" style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">👤</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:#c8d8f0">${b.nama||'(Tanpa Nama)'}</div>
+          <div style="font-size:10px;color:var(--text3)">${[b.email,b.hp].filter(Boolean).join(' · ')||'No kontak'}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:14px;font-weight:800;color:var(--green)">${fmtShort(b.total)}</div>
+          <div style="font-size:10px;color:var(--text3)">${b.orders.length}x order${b.pending?` · <span style="color:var(--yellow)">${b.pending} pending</span>`:''}</div>
+        </div>
+      </div>
+      <div class="buyer-tags">
+        ${b.orders.slice(0,3).map(o=>`<span class="buyer-tag">${o.date} · ${fmtShort(o.amount)} · ${(o.status||'lunas')==='pending'?'⏳':'✅'}</span>`).join('')}
+        ${b.orders.length>3?`<span class="buyer-tag">+${b.orders.length-3} lagi</span>`:''}
+      </div>
+    </div>`).join('');
+}
+
+// ===================== ORDER FORM =====================
+function submitOrder() {
+  const date = document.getElementById('fDate').value;
+  const amount = parseInt(document.getElementById('fAmount').value||'0', 10);
+  if (!date || !amount) { showToast('⚠️ Tanggal & nominal wajib diisi.','err'); return; }
+  const o = {
+    date, amount,
+    platform: document.getElementById('fPlatform').value,
+    product: document.getElementById('fProduct').value,
+    status: document.getElementById('fStatus').value,
+    nama: document.getElementById('fNama').value,
+    email: document.getElementById('fEmail').value,
+    hp: document.getElementById('fHp').value,
+  };
+  if (editId) {
+    orders = orders.map(x => x.id===editId ? {...x,...o} : x);
+    editId = null;
+    showToast('✅ Transaksi diperbarui!');
+  } else {
+    orders.unshift({id:uid(),...o});
+    orders.sort((a,b)=>b.date.localeCompare(a.date));
+    showToast('✅ Transaksi ditambahkan!');
+  }
+  scheduleSave();
+  resetForm();
+  switchTab('dashboard');
+  renderDashboard();
+}
+
+function startEdit(id) {
+  const o = orders.find(x=>x.id===id);
+  if (!o) return;
+  editId = id;
+  document.getElementById('fDate').value = o.date;
+  document.getElementById('fAmount').value = o.amount;
+  document.getElementById('fPlatform').value = o.platform;
+  document.getElementById('fProduct').value = o.product||PRODUCTS[0];
+  document.getElementById('fStatus').value = o.status||'lunas';
+  document.getElementById('fNama').value = o.nama||'';
+  document.getElementById('fEmail').value = o.email||'';
+  document.getElementById('fHp').value = o.hp||'';
+  document.getElementById('formTitle').textContent = '✏️ Edit Transaksi';
+  document.getElementById('submitBtn').textContent = 'Simpan';
+  document.getElementById('cancelBtn').style.display = 'block';
+  switchTab('tambah');
+}
+function cancelEdit() { editId=null; resetForm(); }
+function resetForm() {
+  editId=null;
+  document.getElementById('fDate').value = todayStr();
+  document.getElementById('fAmount').value = '';
+  document.getElementById('fPlatform').value = 'Scalev';
+  document.getElementById('fProduct').value = PRODUCTS[0];
+  document.getElementById('fStatus').value = 'lunas';
+  ['fNama','fEmail','fHp'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('formTitle').textContent = '➕ Tambah Transaksi';
+  document.getElementById('submitBtn').textContent = 'Tambah';
+  document.getElementById('cancelBtn').style.display = 'none';
+}
+function deleteOrder(id) {
+  if (!confirm('Hapus transaksi ini?')) return;
+  orders = orders.filter(o=>o.id!==id);
+  scheduleSave(); renderDashboard();
+  showToast('🗑️ Transaksi dihapus');
+}
+
+// ===================== EXPORT =====================
+function download(name, content, type) {
+  const bl = new Blob([content],{type});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(bl);
+  a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+function exportCSV() {
+  if (!orders.length) { showToast('⚠️ Belum ada data.','err'); return; }
+  const cols = ['id','date','amount','platform','product','status','nama','email','hp'];
+  const rows = [cols.join(','), ...orders.map(o=>cols.map(c=>String(o[c]||'').replace(/,/g,' ')).join(','))];
+  download('zdh-sales-'+todayStr()+'.csv', rows.join('\n'), 'text/csv');
+  showToast('📤 Export berhasil!');
+}
+function exportBuyers() {
+  const map={};
+  orders.filter(o=>o.nama||o.email||o.hp).forEach(o=>{
+    const k=o.email||o.hp||o.nama;
+    if(!map[k])map[k]={nama:o.nama||'',email:o.email||'',hp:o.hp||'',count:0,total:0,pending:0,last_date:''};
+    map[k].count++; map[k].total+=o.amount;
+    if((o.status||'lunas')==='pending') map[k].pending++;
+    if(o.date>map[k].last_date) map[k].last_date=o.date;
+  });
+  const list = Object.values(map);
+  if (!list.length) { showToast('⚠️ Belum ada data pembeli.','err'); return; }
+  const cols = ['nama','email','hp','count','total','pending','last_date'];
+  const rows = [cols.join(','), ...list.map(b=>cols.map(c=>String(b[c]||'').replace(/,/g,' ')).join(','))];
+  download('zdh-pembeli-'+todayStr()+'.csv', rows.join('\n'), 'text/csv');
+  showToast('📤 Export pembeli berhasil!');
+}
+
+// ===================== IMPORT =====================
+function openImport() {
+  document.getElementById('csvInput').value='';
+  document.getElementById('csvErr').style.display='none';
+  document.getElementById('csvPreview').style.display='none';
+  document.getElementById('csvPreviewBtn').style.display='block';
+  document.getElementById('csvImportBtn').style.display='none';
+  csvRows=[];
+  openModal('importModal');
+}
+function previewCSV() {
+  const errEl=document.getElementById('csvErr'), prevEl=document.getElementById('csvPreview');
+  errEl.style.display='none'; prevEl.style.display='none';
+  const lines = document.getElementById('csvInput').value.trim().split('\n');
+  if (lines.length<2) { showCsvErr('CSV minimal harus ada header dan 1 data.'); return; }
+  const hdr = lines[0].split(',').map(h=>h.trim().toLowerCase());
+  const idx = keys => hdr.findIndex(h=>keys.some(k=>h.includes(k)));
+  const di=idx(['date','tanggal']), ai=idx(['amount','harga','revenue','nominal']);
+  const pi=idx(['platform']), pri=idx(['product','produk']), si=idx(['status']);
+  const ni=idx(['nama','name']), ei=idx(['email']), hi=idx(['hp','phone','wa']);
+  if (di<0||ai<0) { showCsvErr('CSV harus ada kolom date/tanggal dan amount/harga.'); return; }
+  csvRows = lines.slice(1).map((l,i)=>{
+    const c = l.split(',').map(x=>x.trim());
+    let date = c[di]||'';
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(date)){const[d,m,y]=date.split('/');date=`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;}
+    else if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(date)){const[d,m,y]=date.split('-');date=`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;}
+    const amount = parseInt((c[ai]||'0').replace(/\D/g,''),10)||0;
+    const rawStatus = si>=0?c[si]||'lunas':'lunas';
+    const status = rawStatus.toLowerCase().includes('pending')?'pending':'lunas';
+    return {id:uid(),date,amount,
+      platform:pi>=0?c[pi]||'Scalev':'Scalev',
+      product:pri>=0?c[pri]||PRODUCTS[0]:PRODUCTS[0],
+      status, nama:ni>=0?c[ni]||'':'',
+      email:ei>=0?c[ei]||'':'', hp:hi>=0?c[hi]||'':'',
+    };
+  }).filter(r=>r.date&&r.amount>0);
+  if (!csvRows.length) { showCsvErr('Tidak ada baris valid ditemukan.'); return; }
+  const preview = csvRows.slice(0,4).map(r=>
+    `<div style="font-size:10px;color:#8aa8d0;margin-bottom:2px">${r.date} · ${r.platform} · ${fmtRp(r.amount)} · ${r.status==='pending'?'⏳':'✅'}${r.nama?' · '+r.nama:''}</div>`
+  ).join('');
+  prevEl.innerHTML = `<div style="font-size:11px;color:var(--green);margin-bottom:5px">✅ ${csvRows.length} baris siap diimport</div>${preview}${csvRows.length>4?`<div style="font-size:10px;color:var(--text3)">...dan ${csvRows.length-4} lainnya</div>`:''}`;
+  prevEl.style.display='block';
+  document.getElementById('csvPreviewBtn').style.display='none';
+  document.getElementById('csvImportBtn').style.display='block';
+}
+function showCsvErr(msg) { const e=document.getElementById('csvErr'); e.textContent='⚠️ '+msg; e.style.display='block'; }
+function confirmImport() {
+  const ex = new Set(orders.map(o=>`${o.date}-${o.amount}-${o.platform}`));
+  const toAdd = csvRows.filter(r=>!ex.has(`${r.date}-${r.amount}-${r.platform}`));
+  orders = [...orders,...toAdd].sort((a,b)=>b.date.localeCompare(a.date));
+  scheduleSave(); closeModal('importModal'); renderDashboard();
+  showToast(`✅ ${toAdd.length} transaksi diimport!`);
+}
+
+// ===================== MODAL =====================
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id, e) { if (!e||e.target===e.currentTarget) document.getElementById(id).classList.remove('open'); }
+
+// ===================== TAB =====================
+function switchTab(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if (name==='pembeli') renderBuyers();
+  if (name==='tambah'&&!editId) resetForm();
+  window.scrollTo(0,0);
+}
+
+// ===================== INIT =====================
+async function init() {
+  loadData_local();
+  loadCloudCfg();
+  const t = todayStr();
+  currentFrom = addDays(t,-29); currentTo = t;
+  document.getElementById('dateFrom').value = currentFrom;
+  document.getElementById('dateTo').value = currentTo;
+  document.getElementById('fDate').value = t;
+  initPresets();
+  setStatusFilter('all');
+  renderDashboard();
+  await cloudLoad();
+  renderDashboard();
+}
+function loadData_local() {
+  try { orders=JSON.parse(localStorage.getItem(LS_KEY)||'[]'); } catch(e) { orders=[]; }
+}
+init();
+</script>
+</body>
+</html>
