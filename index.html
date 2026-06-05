@@ -185,7 +185,7 @@ function renderDashboard() {
 
   const stats = [
     {label:'Est. Gross Revenue',val:fmtShort(totalRev),sub:fmtRp(totalRev),col:'#4a9eff',bg:'#0f2040',border:'#4a9eff22'},
-    {label:'Total Order',val:completed.length+pending.length,sub:completed.length+' completed · '+pending.length+' pending',col:'#00d97e',bg:'#0a1e14',border:'#00d97e22'},
+    {label:'Total Order',val:completed.length+pending.length,sub:'',col:'#00d97e',bg:'#0a1e14',border:'#00d97e22'},
     {label:'Completed',val:completed.length,sub:'✅ completed',col:'#f5a623',bg:'#201a0a',border:'#f5a62322'},
     {label:'Pending',val:pending.length,sub:'⏳ waiting',col:'#bf7af0',bg:'#180e2a',border:'#bf7af022'},
   ];
